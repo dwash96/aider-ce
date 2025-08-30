@@ -14,6 +14,7 @@ from grep_ast import TreeContext, filename_to_lang
 from pygments.lexers import guess_lexer_for_filename
 from pygments.token import Token
 from tqdm import tqdm
+import tree_sitter
 
 from aider.dump import dump
 from aider.special import filter_important_files
@@ -414,7 +415,8 @@ class RepoMap:
 
         # Run the tags queries
         query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        cursor = tree_sitter.QueryCursor(query)
+        captures = cursor.captures(tree.root_node)
 
         saw = set()
         if USING_TSL_PACK:

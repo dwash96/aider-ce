@@ -38,6 +38,7 @@ from .history_search import HistorySearchCommand
 from .hooks import HooksCommand
 from .hot_reload import HotReloadCommand
 from .include_skill import IncludeSkillCommand
+from .insert_queue import InsertQueueCommand
 from .lint import LintCommand
 from .list_mcp import ListMcpCommand
 from .list_queue import ListQueueCommand
@@ -134,9 +135,11 @@ CommandRegistry.register(ReapAgentCommand)
 CommandRegistry.register(SpawnAgentCommand)
 CommandRegistry.register(SwitchAgentCommand)
 CommandRegistry.register(IncludeSkillCommand)
+CommandRegistry.register(InsertQueueCommand)
 CommandRegistry.register(LintCommand)
 CommandRegistry.register(ListMcpCommand)
 CommandRegistry.register(ListQueueCommand)
+CommandRegistry.register(RemoveQueueCommand)
 CommandRegistry.register(ListSessionsCommand)
 CommandRegistry.register(ListSkillsCommand)
 CommandRegistry.register(LoadCommand)
@@ -221,11 +224,13 @@ __all__ = [
     "HooksCommand",
     "HotReloadCommand",
     "IncludeSkillCommand",
+    "InsertQueueCommand",
     "ReapAgentCommand",
     "SpawnAgentCommand",
     "SwitchAgentCommand",
     "LintCommand",
     "ListSessionsCommand",
+    "ListQueueCommand",
     "ListSkillsCommand",
     "LoadCommand",
     "LoadHookCommand",
@@ -244,6 +249,7 @@ __all__ = [
     "PasteCommand",
     "quote_filename",
     "QueueCommand",
+    "RemoveQueueCommand",
     "QuitCommand",
     "ReadOnlyCommand",
     "ReadOnlyStubCommand",

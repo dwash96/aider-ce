@@ -61,6 +61,40 @@ def enqueue_prompt(coder, text: str) -> dict:
     return item
 
 
+def insert_prompt(coder, text: str, index: int) -> dict:
+    """Insert a prompt at the given 0-based index and return the queued item.
+
+    Args:
+        coder: The coder whose queue should be modified.
+        text: The prompt text to insert.
+        index: 0-based position to insert at. Clamped to [0, len(queue)].
+
+    Returns:
+        dict with keys: id (str), text (str), timestamp (float).
+
+    Raises:
+        ValueError: If text is empty, None, or exceeds 10000 characters.
+        RuntimeError: If the queue is at max capacity (100 items).
+    """
+    if not text or not text.strip():
+        raise ValueError("Cannot enqueue empty prompt")
+    if len(text) > MAX_PROMPT_LENGTH:
+        raise ValueError("Prompt exceeds maximum length of 10000 characters")
+    if get_queue_length(coder) >= MAX_QUEUE_SIZE:
+        raise RuntimeError("Queue is full (max 100 items)")
+
+    index = max(0, min(index, get_queue_length(coder)))
+    with _get_lock(coder):
+        coder._queue_counter += 1
+        item = {
+            "id": str(coder._queue_counter),
+            "text": text,
+            "timestamp": time.time(),
+        }
+        coder.prompt_queue.insert(index, item)
+    return item
+
+
 def dequeue_prompt(coder) -> dict | None:
     """Remove and return the first item from the coder's queue (FIFO).
 

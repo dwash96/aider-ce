@@ -24,7 +24,7 @@ Use curl to download the script and execute it with sh:
 curl -LsSf https://cecli.dev/install.sh | sh
 ```
 
-If your system doesn't have curl, you can use wget:
+If your system does not have curl, you can use wget:
 
 ```bash
 wget -qO- https://cecli.dev/install.sh | sh
@@ -53,7 +53,7 @@ pip install cecli-dev
 uv tool install --native-tls --python python3.12 cecli-dev
 ```
 
-Use the tool installation so cecli doesn't interfere with your development environment
+Use the tool installation so cecli doesn't interfere with your development environment.
 
 ## Features and Documentation:
 

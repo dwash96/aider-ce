@@ -59,6 +59,113 @@ Cecli supports commands from within the chat, which all start with `/`.
 
 > **Tip:** You can easily re-send commands or messages. Use the up arrow ⬆ to scroll back or CONTROL-R to search your message history.
 
+## Prompt Queue Management
+
+| Command | Description |
+| :--- | :--- |
+| **/queue** | Queue a prompt for processing after current tasks complete |
+| **/list-queue** | List all prompts currently in the queue |
+| **/remove-queue** | Remove a prompt from the queue by index, or '*' to clear all |
+
+{: .tip }
+
+## Prompt Queue Management Commands
+
+The prompt queue management feature (`CLI-33`) adds three new commands for managing a first-in-first-out (FIFO) queue of prompts.
+
+### Queue Commands
+
+| Command | Description |
+|---------|-------------|
+| **/queue** | Queue a prompt for processing after current tasks complete |
+| **/list-queue** | List all prompts currently in the queue |
+| **/remove-queue** | Remove a prompt from the queue by index, or '*' to clear all |
+
+#### `/queue` Command
+
+**Usage:** `/queue <prompt text>`
+
+**Description:** Adds a prompt to the queue for processing after the current command completes.
+
+**Arguments:**
+- `prompt text`: Required. The prompt text to queue (maximum 10,000 characters)
+
+**Returns:** Confirmation message with the queue position number
+
+**Examples:**
+```bash
+/queue "refactor database layer"
+/queue "add unit tests for user service"
+```
+
+**Implementation Details:**
+- `NORM_NAME = "queue"`
+- `DESCRIPTION = "Queue a prompt for processing after current tasks complete"`
+- `execute()`: Validates input, calls `coder.commands._enqueue_prompt()`, returns position confirmation
+- `get_help()`: Returns usage and examples
+
+#### `/list-queue` Command
+
+**Usage:** `/list-queue`
+
+**Description:** Displays all prompts currently in the queue with their position numbers and timestamps.
+
+**Arguments:** None
+
+**Returns:** Numbered list of queued prompts (`[index] text (timestamp)`) or "Queue is empty" message
+
+**Examples:**
+```bash
+/list-queue
+# Output: [1] refactor database layer (2026-08-01 10:30:00)
+#         [2] add unit tests for user service (2026-08-01 10:30:05)
+```
+
+**Implementation Details:**
+- `NORM_NAME = "list-queue"`
+- `DESCRIPTION = "List all prompts currently in the queue"`
+- `execute()`: Accesses queue, formats output with timestamps and truncated text, handles empty queue
+- `get_help()`: Returns usage and examples
+
+#### `/remove-queue` Command
+
+**Usage:** `/remove-queue <index>`, `/remove-queue *`, or `/remove-queue` (interactive)
+
+**Description:** Removes a specific prompt from the queue by index, clears the entire queue with `*`, or provides interactive selection when called with no arguments.
+
+**Arguments:**
+- `index`: Optional. 0-based index of the prompt to remove, or `*` wildcard to clear all
+
+**Returns:** Confirmation of removal and updated queue state
+
+**Examples:**
+```bash
+/remove-queue 2          # Remove prompt at index 2
+/remove-queue *          # Clear entire queue
+/remove-queue            # Interactive selection mode
+```
+
+**Implementation Details:**
+- `NORM_NAME = "remove-queue"`
+- `DESCRIPTION = "Remove a prompt from the queue by index, or '*' to clear all"`
+- `execute()`: Handles `*` wildcard, numbered index, and interactive mode
+- `get_help()`: Returns usage and examples
+- `get_completions()`: Returns index numbers + `*` for tab completion
+
+#### Error Handling
+
+All queue commands follow consistent error handling patterns:
+- `ValueError`: Raised for empty prompts or None values in `/queue`
+- `IndexError`: Raised for out-of-bounds indices in `/remove-queue`
+- Usage errors: Non-integer indices, invalid arguments show user-friendly messages
+- Null checks: Handle `coder.commands` is None gracefully with error messages
+
+#### Thread Safety
+
+The queue uses an `asyncio.Lock` (`_queue_lock`) to protect all read and write operations, ensuring atomic updates in the single-threaded async event loop.
+You can easily re-send commands or messages.
+Use the up arrow ⬆ to scroll back
+or CONTROL-R to search your message history.
 
 ## Non-TUI Related Notes
 

@@ -30,3 +30,17 @@
 * [Benchmark Results By Language](https://github.com/dwash96/aider-ce/pull/27)
 * [Allow Benchmarks to Use Repo Map For Better Accuracy](https://github.com/dwash96/aider-ce/pull/25)
 * [Read File Globbing](https://github.com/Aider-AI/aider/pull/3395)
+
+### Prompt Queueing (CLI-33)
+- Added `/queue <prompt>` to add prompts to a FIFO queue.
+- Added `/list-queue` to view queued prompts.
+- Added `/remove-queue [index|*]` to remove specific prompts or clear the queue.
+- Queued prompts process automatically after the current command completes.
+- Queue state persists across command executions within a session.
+- Management commands do not trigger queue processing.
+- Queue data structure implemented in `Commands` class with thread-safe operations using `asyncio.Lock`.
+- Max queue size limit of 100 items.
+* [Prompt Queueing](https://github.com/cecli-dev/cecli/issues/33)
+    * Added `/queue`, `/list-queue`, and `/remove-queue` commands for deferred prompt processing.
+    * Queued prompts process automatically in FIFO order when the system is idle.
+    * Queue state is in-memory and session-specific.

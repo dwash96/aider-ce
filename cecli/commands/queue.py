@@ -26,7 +26,7 @@ class QueueCommand(BaseCommand):
         # Sad path: coder.commands is None
         if not coder.commands:
             return format_command_result(
-                io, cls.NORM_NAME, error="Command system not available. Cannot queue prompts."
+                io, cls.NORM_NAME, "", error="Command system not available. Cannot queue prompts."
             )
 
         # Sad path: no args (empty prompt text)
@@ -34,8 +34,11 @@ class QueueCommand(BaseCommand):
             return format_command_result(
                 io,
                 cls.NORM_NAME,
-                "Usage: /queue <prompt text>\n"
-                "Add a prompt to the queue for processing after current tasks complete.",
+                "",
+                error=(
+                    "Usage: /queue <prompt text> - Add a prompt to the queue "
+                    "for processing after current tasks complete."
+                ),
             )
 
         prompt_text = args.strip()
@@ -45,6 +48,7 @@ class QueueCommand(BaseCommand):
             return format_command_result(
                 io,
                 cls.NORM_NAME,
+                "",
                 error=f"Prompt exceeds maximum length of 10000 characters "
                 f"(got {len(prompt_text)}).",
             )
@@ -56,9 +60,9 @@ class QueueCommand(BaseCommand):
             io.tool_output(f"Prompt queued at position {position} (id: {item['id']})")
             return f"Successfully executed {cls.NORM_NAME}."
         except ValueError as e:
-            return format_command_result(io, cls.NORM_NAME, error=str(e))
+            return format_command_result(io, cls.NORM_NAME, "", error=str(e))
         except RuntimeError as e:
-            return format_command_result(io, cls.NORM_NAME, error=str(e))
+            return format_command_result(io, cls.NORM_NAME, "", error=str(e))
 
     @classmethod
     def get_completions(cls, io, coder, args) -> List[str]:

@@ -66,3 +66,15 @@ A directory containing custom tool packages (`.py` files exposing a `Tool` class
 
 > **Tip:**
 > See the [API key configuration docs](config/api-keys.html) for information on how to configure and store your API keys.
+
+## Prompt Queue Configuration
+
+- `max_queue_size`: Maximum number of prompts that can be queued in a single session (default: 100, range: 1-1000). Environment variable: `CECLI_MAX_QUEUE_SIZE`.
+- `max_prompt_length`: Maximum length of a single queued prompt (default: 10,000, range: 100-50,000). Environment variable: `CECLI_MAX_PROMPT_LENGTH`.
+
+## Prompt Queue Configuration
+
+- `max_queue_size`: Maximum number of prompts that can be queued in a single session (default: 100, range: 1-1000). Environment variable: `CECLI_MAX_QUEUE_SIZE`.
+- `max_prompt_length`: Maximum length of a single queued prompt (default: 10,000, range: 100-50,000). Environment variable: `CECLI_MAX_PROMPT_LENGTH`.
+
+{% include keys.md %}

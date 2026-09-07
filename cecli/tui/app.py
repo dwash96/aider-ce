@@ -894,15 +894,16 @@ class TUI(App):
                 self._handle_workspace_command(user_input, stripped)
                 return
 
-        # Intercept queue management commands (/queue, /list-queue, /remove-queue)
-        # to dispatch immediately without a full generation cycle - they only
-        # modify the active coder's prompt_queue.
+        # Intercept queue management commands (/queue, /list-queue, /remove-queue,
+        # /insert-queue) to dispatch immediately without a full generation cycle -
+        # they only modify the active coder's prompt_queue.
         if (
             stripped == "/queue"
             or stripped.startswith("/queue ")
             or stripped == "/list-queue"
             or stripped == "/remove-queue"
             or stripped.startswith("/remove-queue ")
+            or stripped.startswith("/insert-queue ")
         ):
             self._handle_queue_command(stripped)
             return
@@ -1019,6 +1020,20 @@ class TUI(App):
                 f"Prompt queued at position {position} (id: {item['id']})"
             )
 
+            # Process the queued prompt immediately when the coder is idle (no
+            # active output task). The TUI dispatches queue commands directly
+            # here instead of through run_one(), so without this the queued
+            # prompt would only run after the user submits yet another prompt.
+            worker_loop = getattr(self.worker, "loop", None)
+            if (
+                worker_loop is not None
+                and not is_active(getattr(active_coder.io, "output_task", None))
+                and not getattr(active_coder, "_processing_queue", False)
+            ):
+                worker_loop.call_soon_threadsafe(
+                    lambda: worker_loop.create_task(active_coder._drain_prompt_queue(True))
+                )
+
         elif cmd == "/list-queue":
             items = command_queue.list_queue(active_coder)
             if not items:
@@ -1033,6 +1048,41 @@ class TUI(App):
                 lines.append(f"[{index + 1}] {preview} ({stamp})")
 
             self._get_visible_container().add_output("\n".join(lines))
+
+        elif cmd == "/insert-queue":
+            parts = args.split(maxsplit=1)
+            if len(parts) != 2:
+                self.show_error("Usage: /insert-queue <index> <prompt text>")
+                return
+
+            try:
+                index = int(parts[0])
+            except ValueError:
+                self.show_error(f"Invalid index: '{parts[0]}'. Please provide a number.")
+                return
+
+            prompt_text = parts[1].strip()
+            try:
+                item = command_queue.insert_prompt(active_coder, prompt_text, index)
+            except (ValueError, RuntimeError) as e:
+                self.show_error(str(e))
+                return
+
+            self._get_visible_container().add_output(
+                f"Prompt inserted at position {index + 1} (id: {item['id']})"
+            )
+
+            # Process the queued prompt immediately when the coder is idle,
+            # same as /queue.
+            worker_loop = getattr(self.worker, "loop", None)
+            if (
+                worker_loop is not None
+                and not is_active(getattr(active_coder.io, "output_task", None))
+                and not getattr(active_coder, "_processing_queue", False)
+            ):
+                worker_loop.call_soon_threadsafe(
+                    lambda: worker_loop.create_task(active_coder._drain_prompt_queue(True))
+                )
 
         elif cmd == "/remove-queue":
             if not args:

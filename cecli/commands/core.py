@@ -88,9 +88,17 @@ class Commands:
         self.cmd_running_event = ThreadSafeEvent()
         self.cmd_running_event.set()
         self.last_command_show_notification = True
+        self.prompt_queue = []
+        self._queue_counter = 0
+        self._queue_lock = ThreadSafeEvent()
+        self._processing_queue = False
+        self.prompt_queue = []
+        self._queue_counter = 0
+        self._queue_lock = ThreadSafeEvent()
+        self._processing_queue = False
 
         # Commands that should NOT trigger auto-processing of the queue
-        self._MANAGEMENT_COMMANDS = {"queue", "list-queue", "remove-queue"}
+        self._MANAGEMENT_COMMANDS = {"queue", "list-queue", "remove-queue", "insert-queue"}
 
     # ── Queue Management Methods (CLI-33) ────────────────────────────── #
     #
@@ -101,41 +109,90 @@ class Commands:
     # instance, so each sub-agent's commands manage that sub-agent's own
     # queue.
 
+    def _active_coder(self):
+        """Resolve the coder queue commands should target.
+
+        Prefers the foreground (sub-agent) coder via
+        ``command_queue.get_active_coder``, falling back to ``self.coder``
+        when no active coder can be resolved (e.g. no AgentService, or the
+        Commands instance is constructed without a coder in tests).
+        """
+        from cecli.helpers import command_queue
+
+        return command_queue.get_active_coder(self.coder) or self.coder
+
     @property
     def prompt_queue(self):
-        """Proxy to the owning coder's prompt queue."""
-        coder = self.coder
-        return coder.prompt_queue if coder is not None else []
+        """Proxy to the active (foreground) coder's prompt queue.
+
+        Resolves through ``command_queue.get_active_coder`` so that when a
+        sub-agent is in the foreground, ``/list-queue`` and friends target
+        that sub-agent's queue rather than the primary coder's queue.
+        """
+        target = self._active_coder()
+        return target.prompt_queue if target is not None else []
 
     def _enqueue_prompt(self, text: str) -> dict:
-        """Add a prompt to the owning coder's queue."""
+        """Add a prompt to the active (foreground) coder's queue."""
         from cecli.helpers import command_queue
 
-        return command_queue.enqueue_prompt(self.coder, text)
+        return command_queue.enqueue_prompt(self._active_coder(), text)
+
+    async def _process_queued_prompts(self, preproc):
+        """Process all queued prompts (FIFO) once the current message completes.
+
+        Runs each queued prompt through ``run_one`` so it is sent to the LLM
+        exactly like a user-typed prompt. A single failing queued prompt is
+        logged and does not stop the remaining ones (``SwitchCoderSignal`` and
+        ``ReloadProgramSignal`` are BaseExceptions and propagate unchanged).
+        """
+        if self._processing_queue:
+            return
+        self._processing_queue = True
+        try:
+            while True:
+                item = self._dequeue_prompt()
+                if item is None:
+                    break
+                text = item["text"]
+                preview = text if len(text) <= 80 else text[:80] + "..."
+                self.io.tool_output(f"Processing queued prompt: {preview}")
+                try:
+                    await self.coder.run_one(text, preproc)
+                except Exception as e:
+                    self.io.tool_error(f"Error processing queued prompt: {e}")
+        finally:
+            self._processing_queue = False
+
+    def _insert_prompt(self, text: str, index: int) -> dict:
+        """Insert a prompt at the given index in the active coder's queue."""
+        from cecli.helpers import command_queue
+
+        return command_queue.insert_prompt(self._active_coder(), text, index)
 
     def _dequeue_prompt(self) -> dict | None:
-        """Remove and return the first item from the owning coder's queue."""
+        """Remove and return the first item from the active coder's queue."""
         from cecli.helpers import command_queue
 
-        return command_queue.dequeue_prompt(self.coder)
+        return command_queue.dequeue_prompt(self._active_coder())
 
     def _get_queue_length(self) -> int:
-        """Return the current number of items in the owning coder's queue."""
+        """Return the current number of items in the active coder's queue."""
         from cecli.helpers import command_queue
 
-        return command_queue.get_queue_length(self.coder)
+        return command_queue.get_queue_length(self._active_coder())
 
     def _remove_from_queue(self, index: int) -> dict | None:
-        """Remove and return the item at the given index from the owning coder's queue."""
+        """Remove and return the item at the given index from the active coder's queue."""
         from cecli.helpers import command_queue
 
-        return command_queue.remove_from_queue(self.coder, index)
+        return command_queue.remove_from_queue(self._active_coder(), index)
 
     def _clear_queue(self) -> list:
-        """Remove all items from the owning coder's queue and return them."""
+        """Remove all items from the active coder's queue and return them."""
         from cecli.helpers import command_queue
 
-        return command_queue.clear_queue(self.coder)
+        return command_queue.clear_queue(self._active_coder())
 
     def _load_custom_commands(self, custom_commands):
         """
@@ -262,6 +319,14 @@ class Commands:
         finally:
             self.cmd_running_event.set()
             if self.coder.tui and self.coder.tui():
+                self.coder.tui().refresh()
+            # NEW: Queue processing integration
+            if (
+                self.prompt_queue
+                and cmd_name not in self._MANAGEMENT_COMMANDS
+                and not self._processing_queue
+            ):
+                await self._process_queued_prompts(self.coder.args.preproc)
                 self.coder.tui().refresh()
 
     def matching_commands(self, inp):

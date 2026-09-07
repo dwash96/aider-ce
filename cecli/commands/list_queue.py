@@ -27,7 +27,7 @@ class ListQueueCommand(BaseCommand):
         # Sad path: coder.commands is None
         if not coder.commands:
             return format_command_result(
-                io, cls.NORM_NAME, error="Command system not available. Cannot list queue."
+                io, cls.NORM_NAME, "", error="Command system not available. Cannot list queue."
             )
 
         queue = coder.commands.prompt_queue
